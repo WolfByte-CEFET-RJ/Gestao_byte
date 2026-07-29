@@ -185,6 +185,20 @@
   margin-bottom: 16px;
 }
 
+.logout-button {
+  background: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.logout-button:hover {
+  background: #c9302c;
+}
+
 .panel-badge {
   font-size: 0.9rem;
   color: #fff;

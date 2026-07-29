@@ -34,12 +34,21 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('@wolfbyte:token')
+    return token
+      ? { Authorization: `Bearer ${token}` }
+      : {}
+  }
+
   const buscarPipes = async () => {
     try {
       setLoading(true)
       setError('')
 
-      const response = await api.get('/pipes')
+      const response = await api.get('/pipes', {
+        headers: getAuthHeaders()
+      })
       setPipes(response.data.pipes || [])
     } catch (err) {
       console.error(err)
@@ -54,7 +63,9 @@ function App() {
       setLoading(true)
       setError('')
 
-      const response = await api.get(`/latecards?page=${page}&pageSize=${pageSize}`)
+      const response = await api.get(`/latecards?page=${page}&pageSize=${pageSize}`, {
+        headers: getAuthHeaders()
+      })
       
       setTotalAtrasados(response.data.totalLateCards ?? 0)
       setCurrentPage(response.data.page ?? page)

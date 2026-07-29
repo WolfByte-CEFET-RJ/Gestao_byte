@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const validateLogin = require('./middleware/validateLogin');
+const verifyJWT = require('./middleware/verifyJWT'); 
 
 const PIPEFY_TOKEN = process.env.PIPEFYKEY;
 const ORG_ID = process.env.PIPEFY_ORG_ID;
@@ -13,7 +14,7 @@ try {
   const { PrismaClient } = require('@prisma/client');
   prisma = new PrismaClient();
 } catch (e) {
-  console.error('🔥 ERRO AO INICIALIZAR O PRISMA:', e.message);
+  console.error('ERRO AO INICIALIZAR O PRISMA:', e.message);
 }
 
 // ==========================================
@@ -57,7 +58,7 @@ router.post('/login', validateLogin, async (req, res) => {
 
       // Auto-migration: Atualiza para hash bcrypt no banco na primeira entrada válida
       if (validPassword) {
-        console.log(`🔄 Migrando senha do usuário "${username}" para hash BCrypt...`);
+        console.log(`Migrando senha do usuário "${username}" para hash BCrypt...`);
         const newHash = await bcrypt.hash(password, 10);
         
         await prisma.user.update({
@@ -78,7 +79,7 @@ router.post('/login', validateLogin, async (req, res) => {
     // 5. Garantia de existência do segredo JWT
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      console.error('🔥 ERRO CRÍTICO: JWT_SECRET não definida no ambiente (.env)');
+      console.error('ERRO CRÍTICO: JWT_SECRET não definida no ambiente (.env)');
       return res.status(500).json({ error: 'Erro de configuração no servidor' });
     }
 
@@ -106,7 +107,7 @@ router.post('/login', validateLogin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('🔥 Erro ao executar login no servidor:', error);
+    console.error('Erro ao executar login no servidor:', error);
     return res.status(500).json({ error: 'Erro interno ao processar login' });
   }
 });
@@ -114,7 +115,7 @@ router.post('/login', validateLogin, async (req, res) => {
 // ==========================================
 // ROTA: /pipes
 // ==========================================
-router.get('/pipes', async (req, res) => {
+router.get('/pipes', verifyJWT,async (req, res) => {
   try {
     const query = `
       query GetOrgPipes($orgId: ID!) {
@@ -212,7 +213,7 @@ router.get('/pipes', async (req, res) => {
 // ==========================================
 // ROTA: /latecards
 // ==========================================
-router.get('/latecards', async (req, res) => {
+router.get('/latecards',verifyJWT,  async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageSize = Math.max(1, Math.min(50, parseInt(req.query.pageSize, 10) || 10));
