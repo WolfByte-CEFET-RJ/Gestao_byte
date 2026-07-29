@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret_troca_rapido';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 module.exports = function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization || req.headers.Authorization;
