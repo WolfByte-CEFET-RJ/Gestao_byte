@@ -1,9 +1,119 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const validateLogin = require('./middleware/validateLogin');
 
 const PIPEFY_TOKEN = process.env.PIPEFYKEY;
 const ORG_ID = process.env.PIPEFY_ORG_ID;
 
+// Inicialização segura com diagnóstico de erro
+let prisma;
+try {
+  const { PrismaClient } = require('@prisma/client');
+  prisma = new PrismaClient();
+} catch (e) {
+  console.error('🔥 ERRO AO INICIALIZAR O PRISMA:', e.message);
+}
+
+// ==========================================
+// ROTA DE LOGIN (Com Suporte a Plaintext & Auto-Hash)
+// ==========================================
+router.post('/login', validateLogin, async (req, res) => {
+  const { username, password } = req.body;
+
+  // 1. Valida se a camada do Prisma está operacional
+  if (!prisma) {
+    return res.status(500).json({ 
+      error: 'Prisma não disponível no servidor. Configure a camada de dados.' 
+    });
+  }
+
+  try {
+    // 2. Busca do usuário na base de dados
+    const user = await prisma.user.findUnique({ 
+      where: { username: username?.trim() } 
+    });
+
+    // 3. Diagnóstico de Usuário não Encontrado
+    if (!user) {
+      console.log(`[LOGIN FAILED] Usuário "${username}" não foi encontrado no banco.`);
+      return res.status(401).json({ 
+        error: 'Credenciais inválidas',
+        reason: 'USER_NOT_FOUND'
+      });
+    }
+
+    const storedPassword = user.password_hash;
+    const isBcryptHash = storedPassword && storedPassword.startsWith('$2');
+    let validPassword = false;
+
+    // 4. Comparação da senha (suporta BCrypt e texto puro legado)
+    if (isBcryptHash) {
+      validPassword = await bcrypt.compare(password, storedPassword);
+    } else {
+      // Fallback para senha em texto limpo salva no banco
+      validPassword = (password === storedPassword);
+
+      // Auto-migration: Atualiza para hash bcrypt no banco na primeira entrada válida
+      if (validPassword) {
+        console.log(`🔄 Migrando senha do usuário "${username}" para hash BCrypt...`);
+        const newHash = await bcrypt.hash(password, 10);
+        
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password_hash: newHash }
+        });
+      }
+    }
+
+    if (!validPassword) {
+      console.log(`[LOGIN FAILED] Senha incorreta para o usuário "${username}".`);
+      return res.status(401).json({ 
+        error: 'Credenciais inválidas',
+        reason: 'INVALID_PASSWORD'
+      });
+    }
+
+    // 5. Garantia de existência do segredo JWT
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('🔥 ERRO CRÍTICO: JWT_SECRET não definida no ambiente (.env)');
+      return res.status(500).json({ error: 'Erro de configuração no servidor' });
+    }
+
+    // Tratamento para ID do tipo BigInt/String
+    const userId = typeof user.id === 'bigint' ? user.id.toString() : user.id;
+
+    // 6. Geração do Token JWT
+    const token = jwt.sign(
+      { 
+        id: userId, 
+        username: user.username, 
+        role: user.role 
+      }, 
+      jwtSecret, 
+      { expiresIn: '3h' }
+    );
+
+    return res.json({
+      token,
+      user: {
+        id: userId,
+        username: user.username,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('🔥 Erro ao executar login no servidor:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar login' });
+  }
+});
+
+// ==========================================
+// ROTA: /pipes
+// ==========================================
 router.get('/pipes', async (req, res) => {
   try {
     const query = `
@@ -14,7 +124,6 @@ router.get('/pipes', async (req, res) => {
           pipes {
             id
             name
-            cards_count
           }
         }
       }
@@ -38,20 +147,76 @@ router.get('/pipes', async (req, res) => {
       return res.status(400).json({ errors: result.errors });
     }
 
+    const pipes = result.data.organization.pipes || [];
+
+    const cardsQuery = `
+      query GetCardsFromPipe($pipeId: ID!) {
+        allCards(pipeId: $pipeId, first: 100) {
+          edges {
+            node {
+              id
+              current_phase {
+                name
+                done
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const pipeCounts = await Promise.all(
+      pipes.map(async (pipe) => {
+        const cardsResponse = await fetch('https://api.pipefy.com/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${PIPEFY_TOKEN}`
+          },
+          body: JSON.stringify({
+            query: cardsQuery,
+            variables: { pipeId: pipe.id }
+          })
+        });
+
+        const cardsResult = await cardsResponse.json();
+        const edges = cardsResult?.data?.allCards?.edges || [];
+        const activeCount = edges.reduce((count, edge) => {
+          const phase = edge.node.current_phase;
+          const phaseName = phase?.name?.trim().toLowerCase() || '';
+          const done = phase?.done;
+          if (done || phaseName === 'feito' || phaseName === 'arquivado') {
+            return count;
+          }
+          return count + 1;
+        }, 0);
+
+        return {
+          ...pipe,
+          cards_count: activeCount
+        };
+      })
+    );
+
     res.json({
       organization: result.data.organization.name,
-      pipes: result.data.organization.pipes
+      pipes: pipeCounts
     });
 
   } catch (error) {
+    console.error('Erro ao buscar pipes do Pipefy:', error);
     res.status(500).json({ error: 'Erro ao buscar pipes do Pipefy' });
   }
 });
 
-// GET /api/cards/late -> Lista os cards atrasados da organização
+// ==========================================
+// ROTA: /latecards
+// ==========================================
 router.get('/latecards', async (req, res) => {
-  console.log("aqui quebrou")
   try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.max(1, Math.min(50, parseInt(req.query.pageSize, 10) || 10));
+
     // 1. Busca todos os pipes da organização
     const pipesQuery = `
       query GetOrgPipes($orgId: ID!) {
@@ -136,7 +301,7 @@ router.get('/latecards', async (req, res) => {
 
     // 3. Aplicação das Regras de Atraso
     const now = new Date();
-    // Inicio do dia atual (00:00:00) para comparação limpa de data
+    // Início do dia atual (00:00:00) para comparação limpa de data
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Data limite de criação: 1 mês atrás
@@ -191,9 +356,18 @@ router.get('/latecards', async (req, res) => {
       }
     }
 
+    const totalLateCards = allLateCards.length;
+    const totalPages = Math.max(1, Math.ceil(totalLateCards / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const pagedCards = allLateCards.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
     res.json({
       organization: orgName,
-      totalLateCards: allLateCards.length,
+      totalLateCards,
+      page: currentPage,
+      pageSize,
+      totalPages,
+      cards: pagedCards,
       top10Cards: allLateCards.slice(0, 10)
     });
 
