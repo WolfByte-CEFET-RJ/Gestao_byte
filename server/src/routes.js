@@ -7,6 +7,7 @@ const verifyJWT = require('./middleware/verifyJWT');
 
 const PIPEFY_TOKEN = process.env.PIPEFYKEY;
 const ORG_ID = process.env.PIPEFY_ORG_ID;
+const { google } = require('googleapis');
 
 // Inicialização segura com diagnóstico de erro
 let prisma;
@@ -17,9 +18,7 @@ try {
   console.error('ERRO AO INICIALIZAR O PRISMA:', e.message);
 }
 
-// ==========================================
-// ROTA DE LOGIN (Com Suporte a Plaintext & Auto-Hash)
-// ==========================================
+
 router.post('/login', validateLogin, async (req, res) => {
   const { username, password } = req.body;
 
@@ -262,6 +261,9 @@ router.get('/latecards',verifyJWT,  async (req, res) => {
               title
               created_at
               due_date
+              labels{
+              name
+              }
               current_phase {
                 id
                 name
@@ -351,7 +353,9 @@ router.get('/latecards',verifyJWT,  async (req, res) => {
             dueDate: card.due_date,
             pipeName: pipeData.pipeName,
             phaseName: card.current_phase ? card.current_phase.name : 'N/A',
-            reason
+            reason,
+            // inclui labels (se disponíveis) para serem usadas no frontend
+            labels: (card.labels || []).map((l) => (l && l.name) ? l.name : '').filter(Boolean)
           });
         }
       }
@@ -375,6 +379,106 @@ router.get('/latecards',verifyJWT,  async (req, res) => {
   } catch (error) {
     console.error('Erro backend:', error);
     res.status(500).json({ error: 'Erro ao calcular cards atrasados' });
+  }
+});
+router.get('/form-responses', verifyJWT, async (req, res) => {
+  try {
+    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    if (!clientEmail || !rawPrivateKey || !spreadsheetId) {
+      return res.status(500).json({ 
+        error: 'Credenciais do Google incompletas no arquivo .env' 
+      });
+    }
+
+    const formattedPrivateKey = rawPrivateKey
+      .replace(/^"(.*)"$/, '$1')
+      .replace(/\\n/g, '\n');
+
+    const auth = new google.auth.JWT({
+      email: clientEmail,
+      key: formattedPrivateKey,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'A1:Z1000',
+    });
+
+    const rows = response.data.values;
+
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, total: 0, responses: [] });
+    }
+
+    // 1. Define as referências de Mês/Ano Atual e Mês/Ano Anterior
+    const now = new Date();
+    
+    // Mês Atual
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Mês Anterior (Garante a virada de ano correta, ex: Jan/2026 -> Dez/2025)
+    const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonth = previousDate.getMonth();
+    const previousYear = previousDate.getFullYear();
+
+    const headers = rows[0];
+
+    // 2. Filtra e mapeia os dados
+    const data = rows
+      .slice(1)
+      .filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''))
+      .map(row => {
+        let obj = {};
+        headers.forEach((header, index) => {
+          const cleanHeader = header ? header.trim() : `Coluna_${index + 1}`;
+          obj[cleanHeader] = row[index] !== undefined ? row[index].trim() : '';
+        });
+        return obj;
+      })
+      .filter(item => {
+        const dateStr = item['Carimbo de data/hora'] || item['Timestamp'] || item[headers[0]];
+        if (!dateStr) return false;
+
+        let itemDate;
+        if (dateStr.includes('/')) {
+          // Trata formato PT-BR: DD/MM/YYYY
+          const parts = dateStr.split(' ')[0].split('/');
+          itemDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        } else {
+          itemDate = new Date(dateStr);
+        }
+
+        if (isNaN(itemDate.getTime())) return false;
+
+        const itemMonth = itemDate.getMonth();
+        const itemYear = itemDate.getFullYear();
+
+        // 3. Valida se a data pertence ao Mês Atual OU ao Mês Anterior
+        const isCurrentMonth = itemMonth === currentMonth && itemYear === currentYear;
+        const isPreviousMonth = itemMonth === previousMonth && itemYear === previousYear;
+
+        return isCurrentMonth || isPreviousMonth;
+      });
+
+    return res.json({ 
+      success: true, 
+      total: data.length, 
+      responses: data 
+    });
+
+  } catch (error) {
+    console.error('Erro ao ler planilha via API do Google:', error.message || error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar respostas do formulário', 
+      details: error.message 
+    });
   }
 });
 
