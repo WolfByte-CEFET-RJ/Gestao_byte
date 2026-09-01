@@ -4,7 +4,6 @@ import Footer from '../components/Footer'
 import './App.css'
 
 import api from '../api'
-import PieChart from '../components/PieChart'
 import FormResponses from '../components/FormResponses'
 
 // Interfaces opcionais para tipagem do TypeScript
@@ -149,7 +148,6 @@ function App() {
     }
   })
 
-  const chartData = Object.entries(tagCounts).map(([key, y]) => ({ name: nameMap[key] || key, y }))
 
   const buscarPipes = async () => {
     try {
