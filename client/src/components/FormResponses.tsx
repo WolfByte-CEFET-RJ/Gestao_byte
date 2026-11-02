@@ -5,6 +5,14 @@ interface FormResponse {
   [key: string]: string | undefined
 }
 
+const responseColumns = ['Carimbo de data/hora', 'Equipe do Follow Up']
+
+const keepResponseColumns = (data: FormResponse[]): FormResponse[] =>
+  data.map((response) => ({
+    'Carimbo de data/hora': response['Carimbo de data/hora'],
+    'Equipe do Follow Up': response['Equipe do Follow Up']
+  }))
+
 export default function FormResponses() {
   const [responses, setResponses] = useState<FormResponse[]>([])
   const [loading, setLoading] = useState(false)
@@ -27,14 +35,9 @@ export default function FormResponses() {
         headers: getAuthHeaders()
       })
 
-      const data: FormResponse[] = response.data.responses || []
+      const data = keepResponseColumns(response.data.responses || [])
       setResponses(data)
-
-      // Extrair nomes das colunas do primeiro registro
-      if (data.length > 0) {
-        const keys = Object.keys(data[0]).filter((key) => data[0][key])
-        setColumns(keys)
-      }
+      setColumns(responseColumns)
 
       localStorage.setItem('@wolfbyte:formResponsesCache', JSON.stringify(data))
     } catch (err) {
@@ -49,12 +52,10 @@ export default function FormResponses() {
     const cached = localStorage.getItem('@wolfbyte:formResponsesCache')
     if (cached) {
       try {
-        const data = JSON.parse(cached)
+        const data = keepResponseColumns(JSON.parse(cached))
         setResponses(data)
-        if (data.length > 0) {
-          const keys = Object.keys(data[0]).filter((key) => data[0][key])
-          setColumns(keys)
-        }
+        setColumns(responseColumns)
+        localStorage.setItem('@wolfbyte:formResponsesCache', JSON.stringify(data))
       } catch {
         // Ignorar erro de parse
       }
@@ -62,42 +63,47 @@ export default function FormResponses() {
   }, [])
 
   return (
-    <section className="panel">
-      <h2>
-        Respostas do Follow up
-        <span className="panel-badge">(Total: {responses.length})</span>
-      </h2>
+    <details className="panel form-responses-panel">
+      <summary className="follow-up-toggle">
+        <h2>
+          Respostas do Follow up
+          <span className="panel-badge">(Total: {responses.length})</span>
+        </h2>
+        <span className="follow-up-chevron" aria-hidden="true" />
+      </summary>
 
-      <button onClick={buscarRespostas} disabled={loading} style={{ marginBottom: '15px' }}>
-        {loading ? 'Carregando...' : 'Buscar Respostas'}
-      </button>
+      <div className="form-responses-content">
+        <button onClick={buscarRespostas} disabled={loading} style={{ marginBottom: '15px' }}>
+          {loading ? 'Carregando...' : 'Buscar Respostas'}
+        </button>
 
-      {error && <p style={{ color: 'red', marginBottom: '15px' }}>{error}</p>}
+        {error && <p style={{ color: 'red', marginBottom: '15px' }}>{error}</p>}
 
-      {responses.length === 0 ? (
-        <p>Nenhuma resposta carregada. Clique em "Buscar Respostas" para carregar.</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                {columns.map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {responses.map((response, index) => (
-                <tr key={index}>
+        {responses.length === 0 ? (
+          <p>Nenhuma resposta carregada. Clique em "Buscar Respostas" para carregar.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
                   {columns.map((column) => (
-                    <td key={`${index}-${column}`}>{response[column] || '-'}</td>
+                    <th key={column}>{column}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+              </thead>
+              <tbody>
+                {responses.map((response, index) => (
+                  <tr key={index}>
+                    {columns.map((column) => (
+                      <td key={`${index}-${column}`}>{response[column] || '-'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </details>
   )
 }

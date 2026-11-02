@@ -205,9 +205,9 @@ function App() {
       <Header />
       
       <main>
-        <h1>Plataforma de gestão de projetos da WolfByte</h1>
+        <h1>Plataforma de gestão da WolfByte</h1>
         
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <div className="dashboard-actions">
           <button onClick={buscarPipes} disabled={loading}>
             {loading ? 'Carregando...' : 'Buscar pipes'}
           </button>

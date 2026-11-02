@@ -407,7 +407,7 @@ router.get('/form-responses', verifyJWT, async (req, res) => {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'A1:Z1000',
+      range: 'A1:B1000',
     });
 
     const rows = response.data.values;
@@ -465,7 +465,11 @@ router.get('/form-responses', verifyJWT, async (req, res) => {
         const isPreviousMonth = itemMonth === previousMonth && itemYear === previousYear;
 
         return isCurrentMonth || isPreviousMonth;
-      });
+      })
+      .map(item => ({
+        'Carimbo de data/hora': item['Carimbo de data/hora'] || '',
+        'Equipe do Follow Up': item['Equipe do Follow Up'] || '',
+      }));
 
     return res.json({ 
       success: true, 

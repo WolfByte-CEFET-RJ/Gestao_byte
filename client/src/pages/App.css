@@ -168,6 +168,80 @@
   margin-top: 20px;
 }
 
+main {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 24px;
+  text-align: left;
+}
+
+.header h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.dashboard-actions button {
+  background: linear-gradient(135deg, #30323b, #1d1e24);
+  color: #fff;
+  border: 1px solid #454751;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20, 21, 26, 0.16);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.dashboard-actions button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #3a3d48, #25262e);
+  border-color: #686b78;
+  box-shadow: 0 8px 18px rgba(20, 21, 26, 0.24);
+}
+
+.dashboard-actions button:focus-visible,
+.filter-button:focus-visible,
+.form-responses-content > button:focus-visible,
+.pagination button:focus-visible,
+.logout-button:focus-visible {
+  outline: 3px solid #8daeff;
+  outline-offset: 3px;
+}
+
+.dashboard-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.dashboard-actions button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(20, 21, 26, 0.2);
+}
+
 .dashboard-filters {
   display: flex;
   flex-wrap: wrap;
@@ -177,13 +251,20 @@
 }
 
 .filter-button {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: #fff;
-  color: #222;
+  border: 1px solid #202127;
+  background: #202127;
+  color: #fff;
   padding: 10px 16px;
   border-radius: 999px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .filter-button:hover:not(:disabled) {
@@ -192,9 +273,10 @@
 }
 
 .filter-button.active {
-  background: #2a6efc;
+  background: linear-gradient(135deg, #397bff, #245bd6);
   color: #fff;
-  border-color: #2a6efc;
+  border-color: #397bff;
+  box-shadow: 0 4px 12px rgba(42, 110, 252, 0.3);
 }
 
 .filter-button:disabled {
@@ -203,20 +285,93 @@
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border);
+  background: #202127;
+  border: 1px solid #454751;
   border-radius: 16px;
   padding: 24px;
   box-shadow: var(--shadow);
+  color: #fff;
 }
 
 .panel h2 {
   display: flex;
   align-items: center;
-  color: black;
+  color: #fff;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.form-responses-panel {
+  margin-bottom: 20px;
+}
+
+.follow-up-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.follow-up-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.follow-up-toggle h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.follow-up-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.follow-up-chevron {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.form-responses-panel[open] .follow-up-chevron {
+  transform: rotate(225deg);
+}
+
+.form-responses-content {
+  margin-top: 16px;
+}
+
+.form-responses-content > button {
+  background: linear-gradient(135deg, #3a3d48, #292a31);
+  color: #fff;
+  border: 1px solid #454751;
+  border-radius: 9px;
+  padding: 9px 15px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.form-responses-content > button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #686b78;
+  box-shadow: 0 6px 14px rgba(20, 21, 26, 0.22);
+}
+
+.form-responses-content > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .logout-button {
@@ -248,13 +403,13 @@ table {
 }
 
 thead {
-  background: rgba(0, 0, 0, 0.05);
+  background: #363840;
 }
 
 th,
 td {
   padding: 12px 14px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid #454751;
   text-align: left;
 }
 
@@ -263,12 +418,16 @@ th {
 }
 
 tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.03);
+  background: #292a31;
 }
 
 @media (max-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  main {
+    padding: 0 16px;
   }
 }
 
@@ -281,13 +440,25 @@ tbody tr:nth-child(even) {
 }
 
 .pagination button {
-  background: var(--accent);
+  background: linear-gradient(135deg, #397bff, #245bd6);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
+  box-shadow: 0 4px 12px rgba(42, 110, 252, 0.2);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(42, 110, 252, 0.3);
 }
 
 .pagination button:disabled {
@@ -297,7 +468,7 @@ tbody tr:nth-child(even) {
 
 .pagination span {
   font-size: 0.95rem;
-  color: #333;
+  color: #fff;
 }
 
 .ticks {
