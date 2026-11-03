@@ -22,7 +22,7 @@ interface LateCard {
   phaseName: string;
   reason: string;
   owner?: string;
-  labels?: string[];
+  labels?: Array<string | { name?: string }>;
 }
 
 const categoryOptions = ['ALL', 'WEB', 'GAMES', 'HARDWARE', 'IA', 'PUBLICIDADE'] as const
@@ -129,7 +129,7 @@ function App() {
       .map((l) => {
         if (!l) return ''
         if (typeof l === 'string') return l
-        if (typeof l === 'object' && 'name' in l) return String((l as any).name)
+        if (typeof l === 'object' && l !== null && 'name' in l) return String(l.name)
         return ''
       })
       .map((s) => s.trim())

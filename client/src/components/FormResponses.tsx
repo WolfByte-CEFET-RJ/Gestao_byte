@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import api from '../api'
 
 interface FormResponse {
@@ -7,6 +7,27 @@ interface FormResponse {
 
 const responseColumns = ['Carimbo de data/hora', 'Equipe do Follow Up']
 
+const getCachedResponses = (): FormResponse[] => {
+  const cached = localStorage.getItem('@wolfbyte:formResponsesCache')
+  if (!cached) return []
+
+  try {
+    const data: unknown = JSON.parse(cached)
+    if (!Array.isArray(data)) return []
+
+    return data.map((item: unknown) => {
+      if (typeof item !== 'object' || item === null) return {}
+      const response = item as FormResponse
+      return {
+        'Carimbo de data/hora': response['Carimbo de data/hora'],
+        'Equipe do Follow Up': response['Equipe do Follow Up']
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
 const keepResponseColumns = (data: FormResponse[]): FormResponse[] =>
   data.map((response) => ({
     'Carimbo de data/hora': response['Carimbo de data/hora'],
@@ -14,10 +35,9 @@ const keepResponseColumns = (data: FormResponse[]): FormResponse[] =>
   }))
 
 export default function FormResponses() {
-  const [responses, setResponses] = useState<FormResponse[]>([])
+  const [responses, setResponses] = useState<FormResponse[]>(getCachedResponses)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [columns, setColumns] = useState<string[]>([])
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('@wolfbyte:token')
@@ -37,7 +57,6 @@ export default function FormResponses() {
 
       const data = keepResponseColumns(response.data.responses || [])
       setResponses(data)
-      setColumns(responseColumns)
 
       localStorage.setItem('@wolfbyte:formResponsesCache', JSON.stringify(data))
     } catch (err) {
@@ -47,20 +66,6 @@ export default function FormResponses() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    const cached = localStorage.getItem('@wolfbyte:formResponsesCache')
-    if (cached) {
-      try {
-        const data = keepResponseColumns(JSON.parse(cached))
-        setResponses(data)
-        setColumns(responseColumns)
-        localStorage.setItem('@wolfbyte:formResponsesCache', JSON.stringify(data))
-      } catch {
-        // Ignorar erro de parse
-      }
-    }
-  }, [])
 
   return (
     <details className="panel form-responses-panel">
@@ -86,7 +91,7 @@ export default function FormResponses() {
             <table>
               <thead>
                 <tr>
-                  {columns.map((column) => (
+                  {responseColumns.map((column) => (
                     <th key={column}>{column}</th>
                   ))}
                 </tr>
@@ -94,7 +99,7 @@ export default function FormResponses() {
               <tbody>
                 {responses.map((response, index) => (
                   <tr key={index}>
-                    {columns.map((column) => (
+                    {responseColumns.map((column) => (
                       <td key={`${index}-${column}`}>{response[column] || '-'}</td>
                     ))}
                   </tr>

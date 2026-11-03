@@ -13,7 +13,11 @@ const { google } = require('googleapis');
 let prisma;
 try {
   const { PrismaClient } = require('@prisma/client');
-  prisma = new PrismaClient();
+  const { PrismaPg } = require('@prisma/adapter-pg');
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+  });
+  prisma = new PrismaClient({ adapter });
 } catch (e) {
   console.error('ERRO AO INICIALIZAR O PRISMA:', e.message);
 }

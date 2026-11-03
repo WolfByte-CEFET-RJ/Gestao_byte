@@ -9,7 +9,7 @@ export default function PieChart({ data, title = '' }: { data: DataPoint[]; titl
   useEffect(() => {
     if (!ref.current) return
 
-    Highcharts.chart(ref.current, {
+    const options: Highcharts.Options = {
       chart: { type: 'pie', backgroundColor: 'transparent' },
       title: { text: title },
       tooltip: { pointFormat: '{series.name}: <b>{point.y}</b>' },
@@ -27,12 +27,13 @@ export default function PieChart({ data, title = '' }: { data: DataPoint[]; titl
       series: [
         {
           name: 'Cards',
-          colorByPoint: true,
           type: 'pie',
           data
         }
       ]
-    } as any)
+    }
+
+    Highcharts.chart(ref.current, options)
   }, [data, title])
 
   return <div ref={ref} />
